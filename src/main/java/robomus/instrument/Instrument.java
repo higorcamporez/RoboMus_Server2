@@ -5,6 +5,7 @@
  */
 package robomus.instrument;
 
+import com.illposed.osc.OSCBundle;
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
 
@@ -22,6 +23,7 @@ import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.SplitTestAndTrain;
+import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
 import org.nd4j.linalg.dataset.api.preprocessor.DataNormalization;
 import org.nd4j.linalg.dataset.api.preprocessor.NormalizerMinMaxScaler;
 import org.nd4j.linalg.learning.config.Sgd;
@@ -32,6 +34,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -67,6 +70,8 @@ public class Instrument implements Serializable{
     protected boolean waitingDelay;
     protected MultiLayerNetwork model;
     protected int maxInput;
+    protected double maxValue;
+    protected Boolean calculateDelay;
 
     public Instrument(){
         this.actions = new ArrayList<Action>();
@@ -156,7 +161,7 @@ public class Instrument implements Serializable{
             this.actions.add(action);
 
         }
-        System.out.println("maxin= " + this.maxInput);
+        
     }
 
     public boolean isWaitingDelay() {
@@ -284,7 +289,7 @@ public class Instrument implements Serializable{
             
             if(arg.getType() == 'n'){
                 Note note = Notes.generateNote();
-                
+
                 //adiciona valor midi que representa a nota
                 row += ",";
                 row += note.getMidiValue().toString();
@@ -319,7 +324,7 @@ public class Instrument implements Serializable{
        
     }
     
-    public void send(OSCMessage oscMessage){
+    public void send(OSCBundle oscBundle){
         if(this.sender == null){
             try {
                 this.sender = new OSCPortOut(InetAddress.getByName(this.getIp()), this.getReceivePort());
@@ -330,15 +335,20 @@ public class Instrument implements Serializable{
             }
         }
         try {
-            sender.send(oscMessage);
+            sender.send(oscBundle);
         } catch (IOException ex) {
             Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
     public void sendTrainMessage(Long id){
+        
         OSCMessage oscMessage = createNewAction(id);
-        this.send(oscMessage);
+        OSCBundle oscBundle =  new OSCBundle();
+        oscBundle.addPacket(oscMessage);
+        oscBundle.setTimestamp(new Date(System.currentTimeMillis()));
+        
+        this.send(oscBundle);
         this.setWaitingDelay(true);
     }
 
@@ -356,10 +366,17 @@ public class Instrument implements Serializable{
         }
     }
     
-    public void removeLastDelay(){
+    public void removeDelay(Long id){
         this.lastInput = null;
+        
         if(this.delays.size()>0){
-            this.delays.remove(this.delays.size() - 1);
+            Delay aux = new Delay(id);
+            int index = this.delays.indexOf(aux);
+            if( index != -1){
+                this.delays.remove(index);
+            }else{
+                System.out.println("removeDelay:  id n encontrado");
+            }
         }
         
     }
@@ -382,7 +399,11 @@ public class Instrument implements Serializable{
     }
 
     public Integer getDelay(OSCMessage oscMessage){
-
+        //caso em que n�o se deseja usar delay
+        if(this.calculateDelay){
+            return 0;
+        }
+        
         List args = oscMessage.getArguments();
         List argumentsType = this.getArgumentsType(oscMessage);
         double[][] input = new double[1][this.maxInput*2];
@@ -409,10 +430,9 @@ public class Instrument implements Serializable{
             }
         }
         INDArray i = Nd4j.create(input);
-
         INDArray output = this.model.output(i);
-        System.out.println(output.getInt(0));
-        return output.getInt(0);
+        System.out.println(output.getDouble(0)*this.maxValue);
+        return (int)(output.getInt(0)*this.maxValue);
     }
 
     public void loadModel(){
@@ -422,17 +442,19 @@ public class Instrument implements Serializable{
         try {
             this.model = MultiLayerNetwork.load(file, true);
         } catch (IOException e) {
+            System.out.println("erro ao caregar o modelo!");
             e.printStackTrace();
         }
 
     }
 
     public void fit(){
-
+        System.out.println("fit(): "+this.delays.size());
         double[][] inputs = new double[this.delays.size()][this.maxInput*2];
         double[] outputs = new double[this.delays.size()];
 
         int index = 0;
+        this.maxValue = 0;
         for (Delay delay : delays) {
             //se necessario completa a entrada da rede
             String fullInput = (delay.getInput1() + "," +delay.getInput2());
@@ -444,14 +466,28 @@ public class Instrument implements Serializable{
             int indexAux = 0;
             for (String string : row) {
                 aux[indexAux] = Double.parseDouble(string);
+                if(aux[indexAux] > this.maxValue){
+                    this.maxValue = aux[indexAux];
+                }
                 indexAux++;
             }
             inputs[index] = aux;
             outputs[index] = delay.getDelay().doubleValue();
+            if(outputs[index] > this.maxValue){
+                this.maxValue = outputs[index];
+            }
             index++;
         }
+        //normalização
+        for (int i = 0; i < inputs.length; i++) {
+            for (int j = 0; j < inputs[i].length; j++) {
+                inputs[i][j] = inputs[i][j]/this.maxValue;
+            }
+            outputs[i] = outputs[i]/this.maxValue;
+        }
+        //
         //prints
-        /*
+
         for (double[] input : inputs) {
             for (double double1 : input) {
                 System.out.print(double1+" ");
@@ -461,7 +497,7 @@ public class Instrument implements Serializable{
         for (double output : outputs) {
             System.out.println(output);
         }
-            */
+
         //tranformando para INDArray
         INDArray i = Nd4j.create(inputs);
         INDArray o = Nd4j.create(outputs, 'f').transpose();
@@ -476,13 +512,14 @@ public class Instrument implements Serializable{
         DataSet trainingData = testAndTrain.getTrain();
         DataSet testData = testAndTrain.getTest();
 
+        /*
         //We need to normalize our data. We'll use NormalizeStandardize (which gives us mean 0, unit variance):
         DataNormalization normalizer = new NormalizerMinMaxScaler();
         normalizer.fitLabel(true);
         normalizer.fit(trainingData);           //Collect the statistics (mean/stdev) from the training data. This does not modify the input data
         normalizer.transform(trainingData);     //Apply normalization to the training data
         normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
-
+        */
         final int numInputs = maxInput*2;
         int outputNum = 1;
         long seed = 1;
@@ -503,8 +540,8 @@ public class Instrument implements Serializable{
                         .build())
                 .layer(new DenseLayer.Builder().nIn(1024).nOut(2048)
                         .build())
-                .layer(new DenseLayer.Builder().nIn(2048).nOut(2048)
-                        .build())
+                //.layer(new DenseLayer.Builder().nIn(2048).nOut(2048)
+                //        .build())
                 .layer(new DenseLayer.Builder().nIn(2048).nOut(512)
                         .build())
                 .layer(new DenseLayer.Builder().nIn(512).nOut(64)
@@ -537,7 +574,7 @@ public class Instrument implements Serializable{
         //evaluate the model on the test set
         Evaluation eval = new Evaluation(1);
         INDArray output = model.output(testData.getFeatures());
-        //System.out.println(output);
+        System.out.println(output);
         eval.eval(testData.getLabels(), output);
         System.out.println(eval.stats());
 
@@ -553,4 +590,14 @@ public class Instrument implements Serializable{
 
         return split;
     }
+
+    public Boolean getCalculateDelay() {
+        return calculateDelay;
+    }
+
+    public void setCalculateDelay(Boolean calculateDelay) {
+        this.calculateDelay = calculateDelay;
+    }
+    
+    
 }

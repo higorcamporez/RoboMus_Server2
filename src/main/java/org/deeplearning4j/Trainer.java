@@ -54,16 +54,7 @@ public class Trainer {
     private static Logger log = LoggerFactory.getLogger(Trainer.class);
 
     public static void main(String... args) throws java.io.IOException, InterruptedException {
-        List l = new ArrayList<>();
-        l.add(1);
-        l.add(2);
 
-        float[][] labelData = new float[10][5];
-        //temp
-        INDArray a = Nd4j.create(labelData);
-        DataSet d = new DataSet(a,a);
-
-        System.out.println(d);
         //
         int numLinesToSkip = 0;
         char delimiter = ',';
@@ -71,27 +62,29 @@ public class Trainer {
         recordReader.initialize(new FileSplit(new ClassPathResource("msgs.csv").getFile()));
         
         //Second: the RecordReaderDataSetIterator handles conversion to DataSet objects, ready for use in neural network
-        int labelIndex = 4;     //5 values in each row of the iris.txt CSV: 4 input features followed by an integer label (class) index. Labels are the 5th value (index 4) in each row
+        int labelIndex = 6;     //5 values in each row of the iris.txt CSV: 4 input features followed by an integer label (class) index. Labels are the 5th value (index 4) in each row
         int numClasses = 1;     //3 classes (types of iris flowers) in the iris data set. Classes have integer values 0, 1 or 2
         int batchSize = 1000;    //Iris data set: 150 examples total. We are loading all of them into one DataSet (not recommended for large data sets)
 
         DataSetIterator iterator = new RecordReaderDataSetIterator(recordReader, batchSize, labelIndex, numClasses);
         DataSet allData = iterator.next();
         allData.shuffle();
-        SplitTestAndTrain testAndTrain = allData.splitTestAndTrain(0.65);  //Use 65% of data for training
+        SplitTestAndTrain testAndTrain = allData.splitTestAndTrain(0.75);  //Use 65% of data for training
 
         DataSet trainingData = testAndTrain.getTrain();
         DataSet testData = testAndTrain.getTest();
-        System.out.println(testData);
+        System.out.println(trainingData.getFeatures());
         //We need to normalize our data. We'll use NormalizeStandardize (which gives us mean 0, unit variance):
-        DataNormalization normalizer = new NormalizerMinMaxScaler();
-        normalizer.fitLabel(true);
+        DataNormalization normalizer = new NormalizerMinMaxScaler(0,1);
+        normalizer.fitLabel(false);
         normalizer.fit(trainingData);           //Collect the statistics (mean/stdev) from the training data. This does not modify the input data
         normalizer.transform(trainingData);     //Apply normalization to the training data
         normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
 
-        
-        final int numInputs = 4;
+        System.out.println("gatry: "+trainingData.getFeatures().getDouble(2));
+
+
+        final int numInputs = labelIndex;
         int outputNum = numClasses;
         long seed = 1;
 
@@ -109,11 +102,11 @@ public class Trainer {
                         .build())
                 .layer(new DenseLayer.Builder().nIn(32).nOut(1024)
                         .build())
-                .layer(new DenseLayer.Builder().nIn(1024).nOut(2048)
-                        .build())
-                .layer(new DenseLayer.Builder().nIn(2048).nOut(2048)
-                        .build())
-                .layer(new DenseLayer.Builder().nIn(2048).nOut(512)
+                //.layer(new DenseLayer.Builder().nIn(1024).nOut(2048)
+                //        .build())
+                //.layer(new DenseLayer.Builder().nIn(2048).nOut(2048)
+                //        .build())
+                .layer(new DenseLayer.Builder().nIn(1024).nOut(512)
                         .build())
                 .layer(new DenseLayer.Builder().nIn(512).nOut(64)
                         .build())
@@ -130,7 +123,7 @@ public class Trainer {
         model.setListeners(new ScoreIterationListener(100));
 
 
-        for(int i=0; i<1000; i++ ) {
+        for(int i=0; i<500; i++ ) {
             model.fit(trainingData);
         }
 
@@ -138,8 +131,13 @@ public class Trainer {
         //evaluate the model on the test set
         Evaluation eval = new Evaluation(numClasses);
         INDArray output = model.output(testData.getFeatures());
-        //System.out.println(output);
+        System.out.println(output);
         eval.eval(testData.getLabels(), output);
         log.info(eval.stats());
+
+        double[] in = new double[]{0,21,500,0,98,500};
+        INDArray ina = Nd4j.create(in);
+        output = model.output(ina);
+        System.out.println(output);
     }
 }

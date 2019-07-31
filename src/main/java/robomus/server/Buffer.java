@@ -1,6 +1,6 @@
 package robomus.server;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Buffer extends Thread{
@@ -19,8 +19,10 @@ public class Buffer extends Thread{
     }
 
     public void addMessage(RoboMusMessage roboMusMessage){
-        System.out.println("add");
+        //System.out.println("add");
         this.messages.add(roboMusMessage);
+        // ordenar
+        Collections.sort(this.messages);
     }
 
     @Override
@@ -29,7 +31,7 @@ public class Buffer extends Thread{
         while(true){
 
             if(!this.messages.isEmpty()){
-                if(this.messages.get(0).getCompensatedTimestamp().getTime() <
+                if((this.messages.get(0).getCompensatedTimestamp().getTime()) <
                     System.currentTimeMillis()) {
 
                     //enviar msg ao instrumento

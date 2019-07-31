@@ -5,6 +5,7 @@
  */
 package robomus.test;
 
+import com.illposed.osc.OSCBundle;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -61,17 +62,88 @@ public class TestDelay {
             }else if(op.equals("1")){
                 c.server.printClients();
             }else if(op.equals("2")){
-                Instrument instrument = c.server.findInstrument("/Smartphone");
-                c.server.trainInstrumentDelay(instrument, 300);
+                System.out.println("============= menu ===============");
+                System.out.println("(0) Train Model");
+                System.out.println("(1) Load Model");
+                System.out.println("(2) tst msgs sem delay");
+                System.out.println("(2) tst msgs sem delay");
+                System.out.println("==================================");
+                
+                String op2 = ler.nextLine();
+                
+                
+                
+                if( op2.equals("2")){
+                    Instrument instrument1 = c.server.findInstrument("/Smartphone");
+                    instrument1.setCalculateDelay(Boolean.FALSE);
+                    Instrument instrument2 = c.server.findInstrument("/Smartphone2");
+                    instrument2.setCalculateDelay(Boolean.FALSE);
+                    
+                    long timeRef = System.currentTimeMillis();
+                    
+                    for (int i = 0; i < 100; i++) {
+                        
+                        OSCMessage oscMessage1 = new OSCMessage(
+                                instrument1.getOscAddress()+"/playNote"
+                        );
+                        oscMessage1.addArgument((long)i);
+                        oscMessage1.addArgument("A4");
+                        oscMessage1.addArgument(500);
+                        
+                        OSCMessage oscMessage2 = new OSCMessage(
+                                instrument2.getOscAddress()+"/playNote"
+                        );
+                        oscMessage2.addArgument((long)i);
+                        oscMessage2.addArgument("A4");
+                        oscMessage2.addArgument(500);
+                        
+                        Date date = new Date(timeRef + (i+1)*2000);
+
+                        OSCBundle oscBundle1 =  new OSCBundle();
+                        oscBundle1.addPacket(oscMessage1);
+                        oscBundle1.setTimestamp(date);
+
+                        c.server.addMessage(oscBundle1);
+
+                        OSCBundle oscBundle2 =  new OSCBundle();
+                        oscBundle2.addPacket(oscMessage2);
+                        oscBundle2.setTimestamp(date);
+
+                        c.server.addMessage(oscBundle2);
+                    }
+                    
+                            
+                }
+                System.out.println("Instrument osc address: ");
+                String name = ler.nextLine();    
+                Instrument instrument = c.server.findInstrument(name);
+                    
+                if(instrument == null){
+                    System.out.println("Instrument not found!");
+                }else{
+                    switch (op2) {
+                        case "0":
+                            c.server.trainInstrumentDelay(instrument, 150);
+                            break;
+                        case "1":
+                            instrument.loadModel();
+                            break;
+                        case "2":
+                            
+                            
+                            //c.server.addMessage(new Date(System.currentTimeMillis() +90000), oscMessage);
+                            //c.server.addMessage(new Date(System.currentTimeMillis() +80000), oscMessage);
+                            break;
+                    }
+                }
 
 
-                //instrument.loadModel();
-
+                /*
                 OSCMessage oscMessage = instrument.createNewAction((long)10);
                 Date date = new Date(System.currentTimeMillis() + 10000);
                 System.out.println(date.getTime());
                 c.server.addMessage(date, oscMessage);
-
+                */
 
             }else{
                 System.out.println("Option not found\n");

@@ -1,25 +1,28 @@
 package robomus.server;
 
+import com.illposed.osc.OSCBundle;
 import com.illposed.osc.OSCMessage;
 import robomus.instrument.Instrument;
 
 import java.util.Date;
 
-public class RoboMusMessage {
+public class RoboMusMessage implements Comparable<RoboMusMessage> {
+
     private Date originalTimestamp;
     private Date compensatedTimestamp;
-    private OSCMessage oscMessage;
+    private OSCBundle oscBundle;
     private Instrument instrument;
 
     public RoboMusMessage() {
     }
 
-    public RoboMusMessage(Date originalTimestamp, Date compensatedTimestamp, OSCMessage oscMessage, Instrument instrument) {
+    public RoboMusMessage(Date originalTimestamp, Date compensatedTimestamp, OSCBundle oscBundle, Instrument instrument) {
         this.originalTimestamp = originalTimestamp;
         this.compensatedTimestamp = compensatedTimestamp;
-        this.oscMessage = oscMessage;
+        this.oscBundle = oscBundle;
         this.instrument = instrument;
     }
+
 
     public Date getOriginalTimestamp() {
         return originalTimestamp;
@@ -37,14 +40,15 @@ public class RoboMusMessage {
         this.compensatedTimestamp = compensatedTimestamp;
     }
 
-    public OSCMessage getOscMessage() {
-        return oscMessage;
+    public OSCBundle getOscBundle() {
+        return oscBundle;
     }
 
-    public void setOscMessage(OSCMessage oscMessage) {
-        this.oscMessage = oscMessage;
+    public void setOscBundle(OSCBundle oscBundle) {
+        this.oscBundle = oscBundle;
     }
 
+    
     public Instrument getInstrument() {
         return instrument;
     }
@@ -53,7 +57,28 @@ public class RoboMusMessage {
         this.instrument = instrument;
     }
 
-    public void send(){
-        instrument.send(oscMessage);
+    public void send() {
+        instrument.send(oscBundle);
+    }
+
+    @Override
+    public String toString() {
+        return "RoboMusMessage{"
+                + "originalTimestamp=" + originalTimestamp
+                + ", compensatedTimestamp=" + compensatedTimestamp
+                + ", instrument=" + instrument
+                + '}';
+    }
+
+    @Override
+    public int compareTo(RoboMusMessage roboMusMessage) {
+        if (this.compensatedTimestamp.getTime() < roboMusMessage.getCompensatedTimestamp().getTime()) {
+            return -1;
+        } else if (this.compensatedTimestamp.getTime() < roboMusMessage.getCompensatedTimestamp().getTime()) {
+            return 1;
+        } else {
+            return 0;
+        }
+
     }
 }

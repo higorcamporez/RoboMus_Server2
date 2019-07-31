@@ -47,7 +47,8 @@ public class Server {
     private int lastIdReceived;
     private volatile boolean waitingDelay;
     private volatile Buffer buffer;
-
+    private int networkDelay;
+    
     public Server(int port) {
         this.sychInterval = 10000;
         this.port = port;
@@ -56,14 +57,14 @@ public class Server {
         this.clients = new ArrayList<>();
         this.instruments = new ArrayList<>();
         this.lastIdReceived = -1;       
-
+        this.networkDelay = 600; //ms
         this.id = 0;
 
         //thread do buffer de mensagens
         this.buffer =  new Buffer();
         this.buffer.setMessages(new ArrayList<RoboMusMessage>());
         this.buffer.start();
-
+            
         //
 
         System.out.println("server started");
@@ -101,6 +102,7 @@ public class Server {
         msg.addArgument(this.name);
         msg.addArgument(this.oscAdress);
         try {
+            //System.out.println("server ip " + InetAddress.getLocalHost().getHostAddress());
             msg.addArgument(InetAddress.getLocalHost().getHostAddress());
         } catch (UnknownHostException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
@@ -335,27 +337,34 @@ public class Server {
         }
     }
 
-    public void addMessage(Date time, OSCMessage oscMessage){
-
+    public void addMessage(OSCBundle oscBundle){
+        
+        OSCMessage oscMessage = (OSCMessage)oscBundle.getPackets().get(0);
+       
         String[] dividedAddress = divideAddress(oscMessage.getAddress());
         String instrumentAddress = dividedAddress[0];
         Instrument instrument =  this.findInstrument("/"+instrumentAddress);
 
         if(instrument != null){
             RoboMusMessage roboMusMessage =  new RoboMusMessage();
-            roboMusMessage.setOscMessage(oscMessage);
+            roboMusMessage.setOscBundle(oscBundle);
             roboMusMessage.setInstrument(instrument);
-            roboMusMessage.setOriginalTimestamp(time);
+            roboMusMessage.setOriginalTimestamp(oscBundle.getTimestamp());
 
             int delay = instrument.getDelay(oscMessage);
+            //int delay = 0; //apenas para teste
             //Date compe
 
-            roboMusMessage.setCompensatedTimestamp(new Date(time.getTime() - delay));
+            roboMusMessage.setCompensatedTimestamp(
+                    new Date(
+                        oscBundle.getTimestamp().getTime() - delay - this.networkDelay
+                    )
+            );
             buffer.addMessage(roboMusMessage);
         }else{
             System.out.println("nao achou instrumento");
         }
-        System.out.println(!buffer.getMessages().isEmpty());
+        //System.out.println(!buffer.getMessages().isEmpty());
 
 
     }
@@ -512,7 +521,7 @@ public class Server {
             
             if(instrument.isWaitingDelay()){
                 System.out.println("removeLastDelay");
-                instrument.removeLastDelay();
+                instrument.removeDelay(id);
             }
             id += 1;
         }
