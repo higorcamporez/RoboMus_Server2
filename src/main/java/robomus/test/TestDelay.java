@@ -45,7 +45,98 @@ public class TestDelay {
 
         //System.out.println("Teste Client iniciado");
     }
+    public void msgsWithoutDelay(int nMsgs){
+        Instrument instrument1 = server.findInstrument("/smartphone");
+        instrument1.setCalculateDelay(Boolean.FALSE);
+        Instrument instrument2 = server.findInstrument("/smartphone2");
+        instrument2.setCalculateDelay(Boolean.FALSE);
+
+        long timeRef = System.currentTimeMillis();
+
+        for (int i = 0; i < nMsgs; i++) {
+
+            OSCMessage oscMessage1 = new OSCMessage(
+                    instrument1.getOscAddress()+"/playNote"
+            );
+            oscMessage1.addArgument((long)i);
+            oscMessage1.addArgument("E5");
+            oscMessage1.addArgument(500);
+
+            OSCMessage oscMessage2 = new OSCMessage(
+                    instrument2.getOscAddress()+"/playNote"
+            );
+            oscMessage2.addArgument((long)i);
+            oscMessage2.addArgument("A4");
+            oscMessage2.addArgument(500);
+
+            Date date = new Date(timeRef + (i+1)*2000);
+
+            OSCBundle oscBundle1 =  new OSCBundle();
+            oscBundle1.addPacket(oscMessage1);
+            oscBundle1.setTimestamp(date);
+
+            server.addMessage(oscBundle1);
+
+            OSCBundle oscBundle2 =  new OSCBundle();
+            oscBundle2.addPacket(oscMessage2);
+            oscBundle2.setTimestamp(date);
+
+            server.addMessage(oscBundle2);
+        }
+    }
     
+    public void msgsWithDelay(int nMsgs){
+        Instrument instrument1 = server.findInstrument("/smartphone");
+        instrument1.setCalculateDelay(Boolean.TRUE);
+        instrument1.loadModel();
+        
+        Instrument instrument2 = server.findInstrument("/smartphone2");
+        instrument2.setCalculateDelay(Boolean.TRUE);
+        instrument2.loadModel();
+
+        long timeRef = System.currentTimeMillis();
+
+        for (int i = 0; i < nMsgs; i++) {
+
+            OSCMessage oscMessage1 = instrument1.createNewAction((long)i);
+
+            OSCMessage oscMessage2 = instrument2.createNewAction((long)i);
+
+            Date date = new Date(timeRef + (i+1)*2000);
+
+            OSCBundle oscBundle1 =  new OSCBundle();
+            oscBundle1.addPacket(oscMessage1);
+            oscBundle1.setTimestamp(date);
+
+            server.addMessage(oscBundle1);
+
+            OSCBundle oscBundle2 =  new OSCBundle();
+            oscBundle2.addPacket(oscMessage2);
+            oscBundle2.setTimestamp(date);
+
+            server.addMessage(oscBundle2);
+        }
+    }
+ 
+    public static String menuTests(){
+        System.out.println("============= menu ===============");
+        System.out.println("(0) Teste sem delay mecânico");
+        System.out.println("(1) Teste com delay mecânico");
+        System.out.println("==================================");
+        Scanner ler = new Scanner(System.in);
+        String op = ler.nextLine();
+        
+        return op;
+    }
+    public static String menuTraining(){
+        System.out.println("============= menu ===============");
+        System.out.println("(0) Train Model");
+        System.out.println("(1) Load Model");
+        System.out.println("==================================");
+        Scanner ler = new Scanner(System.in);
+        String op = ler.nextLine();
+        return op;
+    }
     public static void main(String[] args) {
 
         TestDelay c = new TestDelay();
@@ -54,101 +145,54 @@ public class TestDelay {
             System.out.println("(0) print instruments");
             System.out.println("(1) print clients");
             System.out.println("(2) Train instrument");
+            System.out.println("(3) Tests");
             System.out.println("==================================");
             Scanner ler = new Scanner(System.in);
             String op = ler.nextLine();
-            if(op.equals("0")){
-                c.server.printInstruments();
-            }else if(op.equals("1")){
-                c.server.printClients();
-            }else if(op.equals("2")){
-                System.out.println("============= menu ===============");
-                System.out.println("(0) Train Model");
-                System.out.println("(1) Load Model");
-                System.out.println("(2) tst msgs sem delay");
-                System.out.println("(2) tst msgs sem delay");
-                System.out.println("==================================");
-                
-                String op2 = ler.nextLine();
-                
-                
-                
-                if( op2.equals("2")){
-                    Instrument instrument1 = c.server.findInstrument("/Smartphone");
-                    instrument1.setCalculateDelay(Boolean.FALSE);
-                    Instrument instrument2 = c.server.findInstrument("/Smartphone2");
-                    instrument2.setCalculateDelay(Boolean.FALSE);
-                    
-                    long timeRef = System.currentTimeMillis();
-                    
-                    for (int i = 0; i < 100; i++) {
-                        
-                        OSCMessage oscMessage1 = new OSCMessage(
-                                instrument1.getOscAddress()+"/playNote"
-                        );
-                        oscMessage1.addArgument((long)i);
-                        oscMessage1.addArgument("A4");
-                        oscMessage1.addArgument(500);
-                        
-                        OSCMessage oscMessage2 = new OSCMessage(
-                                instrument2.getOscAddress()+"/playNote"
-                        );
-                        oscMessage2.addArgument((long)i);
-                        oscMessage2.addArgument("A4");
-                        oscMessage2.addArgument(500);
-                        
-                        Date date = new Date(timeRef + (i+1)*2000);
-
-                        OSCBundle oscBundle1 =  new OSCBundle();
-                        oscBundle1.addPacket(oscMessage1);
-                        oscBundle1.setTimestamp(date);
-
-                        c.server.addMessage(oscBundle1);
-
-                        OSCBundle oscBundle2 =  new OSCBundle();
-                        oscBundle2.addPacket(oscMessage2);
-                        oscBundle2.setTimestamp(date);
-
-                        c.server.addMessage(oscBundle2);
-                    }
-                    
+            
+            switch(op){
+                case "0":
+                    c.server.printInstruments();
+                    break;
+                case "1":
+                    c.server.printClients();
+                    break;
+                case "2":
+                    String aux = TestDelay.menuTraining();
+                    System.out.println("Instrument osc address: ");
+                    String name = ler.nextLine();    
+                    Instrument instrument = c.server.findInstrument(name);
                             
-                }
-                System.out.println("Instrument osc address: ");
-                String name = ler.nextLine();    
-                Instrument instrument = c.server.findInstrument(name);
+                    if(instrument == null){
+                        System.out.println("Instrument not found!");
+                    }else{
+                        switch (aux) {
+                            case "0":
+                                c.server.trainInstrumentDelay(instrument, 150);
+                                break;
+                            case "1":
+                                instrument.loadModel();
+                                break;
+                        }
+                    }
+                    break;
+                case "3":
+                    String aux2 = TestDelay.menuTests();
                     
-                if(instrument == null){
-                    System.out.println("Instrument not found!");
-                }else{
-                    switch (op2) {
+                    switch (aux2) {
                         case "0":
-                            c.server.trainInstrumentDelay(instrument, 150);
+                            c.msgsWithoutDelay(10);
                             break;
                         case "1":
-                            instrument.loadModel();
-                            break;
-                        case "2":
-                            
-                            
-                            //c.server.addMessage(new Date(System.currentTimeMillis() +90000), oscMessage);
-                            //c.server.addMessage(new Date(System.currentTimeMillis() +80000), oscMessage);
+                            c.msgsWithDelay(10);
                             break;
                     }
-                }
-
-
-                /*
-                OSCMessage oscMessage = instrument.createNewAction((long)10);
-                Date date = new Date(System.currentTimeMillis() + 10000);
-                System.out.println(date.getTime());
-                c.server.addMessage(date, oscMessage);
-                */
-
-            }else{
-                System.out.println("Option not found\n");
+                break;
+                
+                default:
+                    System.out.println("Option not found\n");
             }
-            
+       
         }
         
     }

@@ -352,9 +352,7 @@ public class Server {
             roboMusMessage.setOriginalTimestamp(oscBundle.getTimestamp());
 
             int delay = instrument.getDelay(oscMessage);
-            //int delay = 0; //apenas para teste
-            //Date compe
-
+            System.out.println("delay="+delay);
             roboMusMessage.setCompensatedTimestamp(
                     new Date(
                         oscBundle.getTimestamp().getTime() - delay - this.networkDelay
@@ -456,8 +454,7 @@ public class Server {
             
         } catch (SocketException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-        }
-            
+        }            
                 
     }
     
@@ -510,6 +507,7 @@ public class Server {
     }
     
     public void trainInstrumentDelay(Instrument instrument, int numMessage){
+        instrument.setCalculateDelay(true);
         Long id = new Long(1);          
         
         for(int i = 0; i < numMessage; i++){

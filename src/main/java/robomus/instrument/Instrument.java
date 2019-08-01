@@ -314,12 +314,6 @@ public class Instrument implements Serializable{
             this.lastInput = row;
         }
         
-        /*
-        List list = new ArrayList<>();
-        
-        list.add(oscMessage);
-        list.add(row);
-         */
         return oscMessage;
        
     }
@@ -400,7 +394,7 @@ public class Instrument implements Serializable{
 
     public Integer getDelay(OSCMessage oscMessage){
         //caso em que não se deseja usar delay
-        if(this.calculateDelay){
+        if(!this.calculateDelay){
             return 0;
         }
         
@@ -419,7 +413,7 @@ public class Instrument implements Serializable{
 
         //adicionando inputs da nova msg
         for (int i = 1; i < args.size(); i++) {
-            System.out.println(args.get(i).toString() +" " + argumentsType.get(i-1).toString());
+            //System.out.println(args.get(i).toString() +" " + argumentsType.get(i-1).toString());
             if(argumentsType.get(i-1).equals('n')){
                 Note note = new Note(args.get(i).toString());
                 input[0][index] = note.getMidiValue();
@@ -431,7 +425,7 @@ public class Instrument implements Serializable{
         }
         INDArray i = Nd4j.create(input);
         INDArray output = this.model.output(i);
-        System.out.println(output.getDouble(0)*this.maxValue);
+        //System.out.println(output.getDouble(0)*this.maxValue);
         return (int)(output.getInt(0)*this.maxValue);
     }
 
