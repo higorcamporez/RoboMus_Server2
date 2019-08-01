@@ -17,11 +17,11 @@ public class Delay {
     private Long messageId;
     private String input1;
     private String input2;
-    private Long delay;
+    private Long delay = (long)-1;
 
     public Delay(Long messageId) {
         this.messageId = messageId;
-        this.delay = new Long(-1);
+
     }
 
     public Delay(Long messageId, String input1, String input2) {

@@ -168,7 +168,7 @@ public class TestDelay {
                     }else{
                         switch (aux) {
                             case "0":
-                                c.server.trainInstrumentDelay(instrument, 150);
+                                c.server.trainInstrumentDelay(instrument, 300);
                                 break;
                             case "1":
                                 instrument.loadModel();

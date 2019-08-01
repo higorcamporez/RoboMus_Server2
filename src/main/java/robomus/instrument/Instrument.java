@@ -450,6 +450,14 @@ public class Instrument implements Serializable{
         int index = 0;
         this.maxValue = 0;
         for (Delay delay : delays) {
+            if(delay.getDelay() == -1){
+                continue;
+            }
+            System.out.println("Delay " + delay.getDelay());
+            if(delay.getDelay() != 300){
+                System.out.println("Deu ruim, meu patrão " + delay.getDelay());
+            }
+            
             //se necessario completa a entrada da rede
             String fullInput = (delay.getInput1() + "," +delay.getInput2());
             System.out.println(fullInput);

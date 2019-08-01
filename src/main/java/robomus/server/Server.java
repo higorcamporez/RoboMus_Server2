@@ -376,7 +376,7 @@ public class Server {
             OSCListener listener = new OSCListener() {
                 @Override
                 public void acceptMessage(java.util.Date time, OSCMessage message) {
-                    System.out.println("receive: "+message.getAddress());
+                    //System.out.println("receive: "+message.getAddress());
                     String[] dividedAdress = divideAddress(message.getAddress());
                     if (dividedAdress.length >= 2) {
                         //System.out.println(dividedAdress[1]);
@@ -525,7 +525,6 @@ public class Server {
         }
         
         //levanta dados para treinamento
-        
         //treina rede
         instrument.fit();
     }

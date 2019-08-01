@@ -59,7 +59,7 @@ public class Trainer {
         int numLinesToSkip = 0;
         char delimiter = ',';
         RecordReader recordReader = new CSVRecordReader(numLinesToSkip,delimiter);
-        recordReader.initialize(new FileSplit(new ClassPathResource("msgs.csv").getFile()));
+        recordReader.initialize(new FileSplit(new ClassPathResource("msgs3.csv").getFile()));
         
         //Second: the RecordReaderDataSetIterator handles conversion to DataSet objects, ready for use in neural network
         int labelIndex = 6;     //5 values in each row of the iris.txt CSV: 4 input features followed by an integer label (class) index. Labels are the 5th value (index 4) in each row
