@@ -14,7 +14,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.illposed.osc.OSCMessage;
+import java.util.Timer;
 import robomus.instrument.Instrument;
+import robomus.metronome.Metronome;
+import robomus.metronome.MetronomeTimer;
 import robomus.server.Server;
 
 /**
@@ -25,6 +28,11 @@ public class TestDelay {
     private Server server;
     
     public TestDelay() {
+        /*teste metronome*/
+        //Metronome m = new Metronome(60);
+        //m.start();
+        
+        
         this.server = new Server(1234);
         server.receiveMessages();
 //        Instrument i1 = new Instrument();
@@ -48,40 +56,56 @@ public class TestDelay {
     public void msgsWithoutDelay(int nMsgs){
         Instrument instrument1 = server.findInstrument("/smartphone");
         instrument1.setCalculateDelay(Boolean.FALSE);
+        
         Instrument instrument2 = server.findInstrument("/smartphone2");
-        instrument2.setCalculateDelay(Boolean.FALSE);
+        
 
         long timeRef = System.currentTimeMillis();
-
+        
+        Timer timer = new Timer();
+        
         for (int i = 0; i < nMsgs; i++) {
-
+            
+            
+            
             OSCMessage oscMessage1 = new OSCMessage(
                     instrument1.getOscAddress()+"/playNote"
             );
             oscMessage1.addArgument((long)i);
             oscMessage1.addArgument("E5");
             oscMessage1.addArgument(500);
-
-            OSCMessage oscMessage2 = new OSCMessage(
-                    instrument2.getOscAddress()+"/playNote"
-            );
-            oscMessage2.addArgument((long)i);
-            oscMessage2.addArgument("A4");
-            oscMessage2.addArgument(500);
-
+            
             Date date = new Date(timeRef + (i+1)*2000);
-
+            
             OSCBundle oscBundle1 =  new OSCBundle();
             oscBundle1.addPacket(oscMessage1);
             oscBundle1.setTimestamp(date);
 
             server.addMessage(oscBundle1);
 
-            OSCBundle oscBundle2 =  new OSCBundle();
-            oscBundle2.addPacket(oscMessage2);
-            oscBundle2.setTimestamp(date);
+           if(instrument2 != null) {
+       
+                instrument2.setCalculateDelay(Boolean.FALSE);
+                OSCMessage oscMessage2 = new OSCMessage(
+                        instrument2.getOscAddress()+"/playNote"
+                );
+                oscMessage2.addArgument((long)i);
+                oscMessage2.addArgument("A4");
+                oscMessage2.addArgument(500);
 
-            server.addMessage(oscBundle2);
+                Date date2 = new Date(timeRef + (i+1)*2000);
+
+                OSCBundle oscBundle2 =  new OSCBundle();
+                oscBundle2.addPacket(oscMessage2);
+                oscBundle2.setTimestamp(date2);
+
+                server.addMessage(oscBundle2);
+            }
+            
+            
+            //add no servidor      
+            timer.schedule(new MetronomeTimer(69, 200), date);
+            
         }
     }
     
