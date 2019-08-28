@@ -55,7 +55,7 @@ public class TestDelay {
     }
     public void msgsWithoutDelay(int nMsgs){
         Instrument instrument1 = server.findInstrument("/smartphone");
-        instrument1.setCalculateDelay(Boolean.FALSE);
+        
         
         Instrument instrument2 = server.findInstrument("/smartphone2");
         
@@ -63,38 +63,39 @@ public class TestDelay {
         long timeRef = System.currentTimeMillis();
         
         Timer timer = new Timer();
-        
+        long t;
         for (int i = 0; i < nMsgs; i++) {
             
-            
-            
-            OSCMessage oscMessage1 = new OSCMessage(
-                    instrument1.getOscAddress()+"/playNote"
-            );
-            oscMessage1.addArgument((long)i);
-            oscMessage1.addArgument("E5");
-            oscMessage1.addArgument(500);
-            
-            Date date = new Date(timeRef + (i+1)*2000);
-            
-            OSCBundle oscBundle1 =  new OSCBundle();
-            oscBundle1.addPacket(oscMessage1);
-            oscBundle1.setTimestamp(date);
+            t = timeRef + (i+1)*1000;
+            if(instrument1 != null) {
+                instrument1.setCalculateDelay(Boolean.FALSE);
+                OSCMessage oscMessage1 = new OSCMessage(
+                        instrument1.getOscAddress()+"/playUsb"
+                );
+                oscMessage1.addArgument((long)i);
+                oscMessage1.addArgument("A4");
+                oscMessage1.addArgument(200);
 
-            server.addMessage(oscBundle1);
+                Date date = new Date(t);
+                
+                OSCBundle oscBundle1 =  new OSCBundle();
+                oscBundle1.addPacket(oscMessage1);
+                oscBundle1.setTimestamp(date);
 
+                server.addMessage(oscBundle1);
+            }
            if(instrument2 != null) {
        
                 instrument2.setCalculateDelay(Boolean.FALSE);
                 OSCMessage oscMessage2 = new OSCMessage(
-                        instrument2.getOscAddress()+"/playNote"
+                        instrument2.getOscAddress()+"/playUsb"
                 );
                 oscMessage2.addArgument((long)i);
                 oscMessage2.addArgument("A4");
-                oscMessage2.addArgument(500);
+                oscMessage2.addArgument(200);
 
-                Date date2 = new Date(timeRef + (i+1)*2000);
-
+                Date date2 = new Date(t);
+                System.out.println("t = " + date2.getTime());
                 OSCBundle oscBundle2 =  new OSCBundle();
                 oscBundle2.addPacket(oscMessage2);
                 oscBundle2.setTimestamp(date2);
@@ -102,11 +103,40 @@ public class TestDelay {
                 server.addMessage(oscBundle2);
             }
             
-            
-            //add no servidor      
-            timer.schedule(new MetronomeTimer(69, 200), date);
-            
         }
+        
+        //msg para fechar log de arquivo
+        t = timeRef + (nMsgs+1)*1000;
+        if(instrument1 != null) {
+            instrument1.setCalculateDelay(Boolean.FALSE);
+            OSCMessage oscMessage1 = new OSCMessage(
+                    instrument1.getOscAddress()+"/closeFile"
+            );
+
+            Date date = new Date(t);
+
+            OSCBundle oscBundle1 =  new OSCBundle();
+            oscBundle1.addPacket(oscMessage1);
+            oscBundle1.setTimestamp(date);
+
+            server.addMessage(oscBundle1);
+        }
+       if(instrument2 != null) {
+
+            instrument2.setCalculateDelay(Boolean.FALSE);
+            OSCMessage oscMessage2 = new OSCMessage(
+                    instrument2.getOscAddress()+"/closeFile"
+            );
+
+            Date date2 = new Date(t);
+
+            OSCBundle oscBundle2 =  new OSCBundle();
+            oscBundle2.addPacket(oscMessage2);
+            oscBundle2.setTimestamp(date2);
+
+            server.addMessage(oscBundle2);
+        }
+            
     }
     
     public void msgsWithDelay(int nMsgs){
@@ -126,8 +156,8 @@ public class TestDelay {
 
             OSCMessage oscMessage2 = instrument2.createNewAction((long)i);
 
-            Date date = new Date(timeRef + (i+1)*2000);
-
+            Date date = new Date(timeRef + (i+1)*1000);
+            
             OSCBundle oscBundle1 =  new OSCBundle();
             oscBundle1.addPacket(oscMessage1);
             oscBundle1.setTimestamp(date);
@@ -205,7 +235,7 @@ public class TestDelay {
                     
                     switch (aux2) {
                         case "0":
-                            c.msgsWithoutDelay(10);
+                            c.msgsWithoutDelay(1500);
                             break;
                         case "1":
                             c.msgsWithDelay(10);

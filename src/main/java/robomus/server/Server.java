@@ -57,7 +57,7 @@ public class Server {
         this.clients = new ArrayList<>();
         this.instruments = new ArrayList<>();
         this.lastIdReceived = -1;       
-        this.networkDelay = 600; //ms
+        this.networkDelay = 250; //ms
         this.id = 0;
 
         //thread do buffer de mensagens
