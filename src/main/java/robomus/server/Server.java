@@ -57,7 +57,7 @@ public class Server {
         this.clients = new ArrayList<>();
         this.instruments = new ArrayList<>();
         this.lastIdReceived = -1;       
-        this.networkDelay = 250; //ms
+        this.networkDelay = 2000; //ms
         this.id = 0;
 
         //thread do buffer de mensagens
@@ -337,7 +337,7 @@ public class Server {
         }
     }
 
-    public void addMessage(OSCBundle oscBundle){
+    public void addMessage(OSCBundle oscBundle, long id){
         
         OSCMessage oscMessage = (OSCMessage)oscBundle.getPackets().get(0);
        
@@ -350,9 +350,10 @@ public class Server {
             roboMusMessage.setOscBundle(oscBundle);
             roboMusMessage.setInstrument(instrument);
             roboMusMessage.setOriginalTimestamp(oscBundle.getTimestamp());
-
+            roboMusMessage.setMessageId(id);
+            
             int delay = instrument.getDelay(oscMessage);
-            System.out.println("delay="+delay);
+            //System.out.println("delay="+delay);
             roboMusMessage.setCompensatedTimestamp(
                     new Date(
                         oscBundle.getTimestamp().getTime() - delay - this.networkDelay

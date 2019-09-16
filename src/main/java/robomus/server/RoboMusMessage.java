@@ -12,16 +12,20 @@ public class RoboMusMessage implements Comparable<RoboMusMessage> {
     private Date compensatedTimestamp;
     private OSCBundle oscBundle;
     private Instrument instrument;
-
+    private long messageId;
+    
     public RoboMusMessage() {
     }
 
-    public RoboMusMessage(Date originalTimestamp, Date compensatedTimestamp, OSCBundle oscBundle, Instrument instrument) {
+    public RoboMusMessage(Date originalTimestamp, Date compensatedTimestamp, OSCBundle oscBundle, Instrument instrument, long messageId) {
         this.originalTimestamp = originalTimestamp;
         this.compensatedTimestamp = compensatedTimestamp;
         this.oscBundle = oscBundle;
         this.instrument = instrument;
+        this.messageId = messageId;
     }
+
+    
 
 
     public Date getOriginalTimestamp() {
@@ -57,6 +61,15 @@ public class RoboMusMessage implements Comparable<RoboMusMessage> {
         this.instrument = instrument;
     }
 
+    public long getMessageId() {
+        return messageId;
+    }
+
+    public void setMessageId(long messageId) {
+        this.messageId = messageId;
+    }
+    
+    
     public void send() {
         instrument.send(oscBundle);
     }

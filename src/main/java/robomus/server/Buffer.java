@@ -22,26 +22,27 @@ public class Buffer extends Thread{
         //System.out.println("add");
         this.messages.add(roboMusMessage);
         // ordenar
-        Collections.sort(this.messages);
+        //Collections.sort(this.messages);
     }
 
     @Override
     public void run() {
 
         while(true){
+            synchronized(this){
+                if(!this.messages.isEmpty()){
+                    if((this.messages.get(0).getCompensatedTimestamp().getTime()) <
+                        System.currentTimeMillis()) {
 
-            if(!this.messages.isEmpty()){
-                if((this.messages.get(0).getCompensatedTimestamp().getTime()) <
-                    System.currentTimeMillis()) {
+                        //enviar msg ao instrumento
+                        this.messages.get(0).send();
+                        System.out.println("buffer: enviou msg "+this.messages.get(0).getMessageId());
+                        //retirar do buffer
+                        this.messages.remove(0);
+                        
+                    }
 
-                    //enviar msg ao instrumento
-                    this.messages.get(0).send();
-
-                    //retirar do buffer
-                    this.messages.remove(0);
-                    System.out.println("buffer: enviou msg: "+System.currentTimeMillis());
                 }
-
             }
         }
     }

@@ -29,10 +29,10 @@ import robomus.server.Server;
  *
  * @author Higor
  */
-public class TestDelay {
+public class TestDelayRaspberry {
     private Server server;
     
-    public TestDelay() {
+    public TestDelayRaspberry() {
         /*teste metronome*/
         //Metronome m = new Metronome(60);
         //m.start();
@@ -59,26 +59,25 @@ public class TestDelay {
         //System.out.println("Teste Client iniciado");
     }
     public void msgsWithoutDelay(int nMsgs){
-        Instrument instrument1 = server.findInstrument("/smartphone");
+        Instrument instrument1 = server.findInstrument("/BongoBot");
         
         
-        Instrument instrument2 = server.findInstrument("/smartphone2");
+        Instrument instrument2 = server.findInstrument("/BongoBot2");
         
 
-        long timeRef = System.currentTimeMillis();
-        
+        long timeRef = System.currentTimeMillis() + 5000;
+        int tempo = 500;
         Timer timer = new Timer();
         long t;
         for (int i = 0; i < nMsgs; i++) {
             
-            t = timeRef + (i+1)*500;
+            t = timeRef + (i+1)*tempo;
             if(instrument1 != null) {
                 instrument1.setCalculateDelay(Boolean.FALSE);
                 OSCMessage oscMessage1 = new OSCMessage(
-                        instrument1.getOscAddress()+"/playUsb"
+                        instrument1.getOscAddress()+"/playBongo"
                 );
                 oscMessage1.addArgument((long)i);
-                oscMessage1.addArgument("A4");
                 oscMessage1.addArgument(200);
 
                 Date date = new Date(t);
@@ -87,50 +86,50 @@ public class TestDelay {
                 oscBundle1.addPacket(oscMessage1);
                 oscBundle1.setTimestamp(date);
 
-                server.addMessage(oscBundle1);
+                server.addMessage(oscBundle1,i);
             }
            if(instrument2 != null) {
        
                 instrument2.setCalculateDelay(Boolean.FALSE);
                 OSCMessage oscMessage2 = new OSCMessage(
-                        instrument2.getOscAddress()+"/playUsb"
+                        instrument2.getOscAddress()+"/playBongo"
                 );
+                
                 oscMessage2.addArgument((long)i);
-                oscMessage2.addArgument("A4");
                 oscMessage2.addArgument(200);
 
                 Date date2 = new Date(t);
-                System.out.println("t = " + date2.getTime());
+                //System.out.println("t = " + date2.getTime());
                 OSCBundle oscBundle2 =  new OSCBundle();
                 oscBundle2.addPacket(oscMessage2);
                 oscBundle2.setTimestamp(date2);
 
-                server.addMessage(oscBundle2);
+                server.addMessage(oscBundle2,i);
             }
             
         }
         
-        //msg para fechar log de arquivo
-        t = timeRef + (nMsgs+1)*500;
+            
+        t = timeRef + (nMsgs)*500;
         if(instrument1 != null) {
             instrument1.setCalculateDelay(Boolean.FALSE);
             OSCMessage oscMessage1 = new OSCMessage(
-                    instrument1.getOscAddress()+"/closeFile"
+                    instrument1.getOscAddress()+"/show"
             );
-
+             
             Date date = new Date(t);
 
             OSCBundle oscBundle1 =  new OSCBundle();
             oscBundle1.addPacket(oscMessage1);
             oscBundle1.setTimestamp(date);
 
-            server.addMessage(oscBundle1);
+            server.addMessage(oscBundle1,1234);
         }
        if(instrument2 != null) {
 
             instrument2.setCalculateDelay(Boolean.FALSE);
             OSCMessage oscMessage2 = new OSCMessage(
-                    instrument2.getOscAddress()+"/closeFile"
+                    instrument2.getOscAddress()+"/show"
             );
 
             Date date2 = new Date(t);
@@ -139,7 +138,7 @@ public class TestDelay {
             oscBundle2.addPacket(oscMessage2);
             oscBundle2.setTimestamp(date2);
 
-            server.addMessage(oscBundle2);
+            server.addMessage(oscBundle2,1234);
         }
             
     }
@@ -167,13 +166,13 @@ public class TestDelay {
             oscBundle1.addPacket(oscMessage1);
             oscBundle1.setTimestamp(date);
 
-            server.addMessage(oscBundle1);
+            server.addMessage(oscBundle1,i);
 
             OSCBundle oscBundle2 =  new OSCBundle();
             oscBundle2.addPacket(oscMessage2);
             oscBundle2.setTimestamp(date);
 
-            server.addMessage(oscBundle2);
+            server.addMessage(oscBundle2,i);
         }
     }
  
@@ -198,33 +197,9 @@ public class TestDelay {
     }
     public static void main(String[] args) {
         
-        /*teste*
-        */
-        OSCPortOut sender = null;
-        OSCMessage msg  = null;
-        OSCBundle bundle = null;
-        try {
-            sender = new OSCPortOut(InetAddress.getByName("172.20.24.129"),
-                    7000);
-            msg = new OSCMessage("/test1");
-            msg.addArgument((int)7000);
-            
-            bundle = new OSCBundle(new Date(1000));
-            bundle.addPacket(msg);
-            sender.send(bundle);
-            System.out.println("madnou");
-        } catch (UnknownHostException ex) {
-            Logger.getLogger(TestDelay.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SocketException ex) {
-            Logger.getLogger(TestDelay.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(TestDelay.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-                
-        //////
+       
         
-        TestDelay c = new TestDelay();
+        TestDelayRaspberry c = new TestDelayRaspberry();
         while(true){
             System.out.println("============= menu ===============");
             System.out.println("(0) print instruments");
@@ -243,7 +218,7 @@ public class TestDelay {
                     c.server.printClients();
                     break;
                 case "2":
-                    String aux = TestDelay.menuTraining();
+                    String aux = TestDelayRaspberry.menuTraining();
                     System.out.println("Instrument osc address: ");
                     String name = ler.nextLine();    
                     Instrument instrument = c.server.findInstrument(name);
@@ -262,11 +237,11 @@ public class TestDelay {
                     }
                     break;
                 case "3":
-                    String aux2 = TestDelay.menuTests();
+                    String aux2 = TestDelayRaspberry.menuTests();
                     
                     switch (aux2) {
                         case "0":
-                            c.msgsWithoutDelay(2500);
+                            c.msgsWithoutDelay(1000);
                             break;
                         case "1":
                             c.msgsWithDelay(10);
