@@ -23,6 +23,10 @@ public class Action {
 
     public Action() {
     }
+
+    public Action(String actionAddress) {
+        this.actionAddress = actionAddress;
+    }
     
     public Action(String messageName, List params) {
         this.actionAddress = messageName;
@@ -61,7 +65,7 @@ public class Action {
     public void setOscMessage(OSCMessage oscMessage) {
         this.oscMessage = oscMessage;
     }
-
+    
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

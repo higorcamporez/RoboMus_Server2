@@ -65,8 +65,8 @@ public class TestDelayRaspberry {
         Instrument instrument2 = server.findInstrument("/BongoBot2");
         
 
-        long timeRef = System.currentTimeMillis() + 5000;
-        int tempo = 500;
+        long timeRef = System.currentTimeMillis() + 3000;
+        int tempo = 1000;
         Timer timer = new Timer();
         long t;
         for (int i = 0; i < nMsgs; i++) {
@@ -110,7 +110,7 @@ public class TestDelayRaspberry {
         }
         
             
-        t = timeRef + (nMsgs)*500;
+        t = timeRef + 10000 + (nMsgs)*500;
         if(instrument1 != null) {
             instrument1.setCalculateDelay(Boolean.FALSE);
             OSCMessage oscMessage1 = new OSCMessage(
@@ -144,36 +144,94 @@ public class TestDelayRaspberry {
     }
     
     public void msgsWithDelay(int nMsgs){
-        Instrument instrument1 = server.findInstrument("/smartphone");
-        instrument1.setCalculateDelay(Boolean.TRUE);
-        instrument1.loadModel();
         
-        Instrument instrument2 = server.findInstrument("/smartphone2");
-        instrument2.setCalculateDelay(Boolean.TRUE);
-        instrument2.loadModel();
-
-        long timeRef = System.currentTimeMillis();
-
+        Instrument instrument1 = server.findInstrument("/BongoBot");
+        if(instrument1 != null) {
+            instrument1.setCalculateDelay(Boolean.TRUE);
+            instrument1.loadModel();
+        }        
+        
+        Instrument instrument2 = server.findInstrument("/BongoBot2");
+        if(instrument2 != null) {
+            instrument2.setCalculateDelay(Boolean.TRUE);
+            instrument2.loadModel();
+        }
+        
+        long timeRef = System.currentTimeMillis() + 5000;
+        int tempo = 500;
+        Timer timer = new Timer();
+        long t;
         for (int i = 0; i < nMsgs; i++) {
-
-            OSCMessage oscMessage1 = instrument1.createNewAction((long)i);
-
-            OSCMessage oscMessage2 = instrument2.createNewAction((long)i);
-
-            Date date = new Date(timeRef + (i+1)*1000);
             
+            t = timeRef + (i+1)*tempo;
+            if(instrument1 != null) {
+                
+                OSCMessage oscMessage1 = new OSCMessage(
+                        instrument1.getOscAddress()+"/playBongo"
+                );
+                oscMessage1.addArgument((long)i);
+                oscMessage1.addArgument(200);
+
+                Date date = new Date(t);
+                
+                OSCBundle oscBundle1 =  new OSCBundle();
+                oscBundle1.addPacket(oscMessage1);
+                oscBundle1.setTimestamp(date);
+
+                server.addMessage(oscBundle1,i);
+            }
+           if(instrument2 != null) {
+       
+                OSCMessage oscMessage2 = new OSCMessage(
+                        instrument2.getOscAddress()+"/playBongo"
+                );
+                
+                oscMessage2.addArgument((long)i);
+                oscMessage2.addArgument(200);
+
+                Date date2 = new Date(t);
+                //System.out.println("t = " + date2.getTime());
+                OSCBundle oscBundle2 =  new OSCBundle();
+                oscBundle2.addPacket(oscMessage2);
+                oscBundle2.setTimestamp(date2);
+
+                server.addMessage(oscBundle2,i);
+            }
+            
+        }
+        
+            
+        t = timeRef + 10000 + (nMsgs)*500;
+        if(instrument1 != null) {
+            instrument1.setCalculateDelay(Boolean.FALSE);
+            OSCMessage oscMessage1 = new OSCMessage(
+                    instrument1.getOscAddress()+"/show"
+            );
+             
+            Date date = new Date(t);
+
             OSCBundle oscBundle1 =  new OSCBundle();
             oscBundle1.addPacket(oscMessage1);
             oscBundle1.setTimestamp(date);
 
-            server.addMessage(oscBundle1,i);
+            server.addMessage(oscBundle1,1234);
+        }
+       if(instrument2 != null) {
+
+            instrument2.setCalculateDelay(Boolean.FALSE);
+            OSCMessage oscMessage2 = new OSCMessage(
+                    instrument2.getOscAddress()+"/show"
+            );
+
+            Date date2 = new Date(t);
 
             OSCBundle oscBundle2 =  new OSCBundle();
             oscBundle2.addPacket(oscMessage2);
-            oscBundle2.setTimestamp(date);
+            oscBundle2.setTimestamp(date2);
 
-            server.addMessage(oscBundle2,i);
+            server.addMessage(oscBundle2,1234);
         }
+        
     }
  
     public static String menuTests(){
@@ -241,7 +299,7 @@ public class TestDelayRaspberry {
                     
                     switch (aux2) {
                         case "0":
-                            c.msgsWithoutDelay(1000);
+                            c.msgsWithoutDelay(100);
                             break;
                         case "1":
                             c.msgsWithDelay(10);

@@ -34,6 +34,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -45,6 +46,7 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import robomus.util.Note;
 import robomus.util.Notes;
+import robomus.util.PrintOSCMessage;
 
         
 /**
@@ -122,21 +124,22 @@ public class Instrument implements Serializable{
         String strActions[] = this.specificProtocol.split(">");
         List actionParametersName = new ArrayList<String>();
        
-        for (String strAct : strActions){   
-            Action action = new Action();
+        for (String strAct : strActions){  
             
+            Action action = new Action();
+            //retira '<'
             strAct = strAct.substring(1, strAct.length());
-            //System.out.println(strAct);
+           
             //separando os parametros da aÃ§Ã£o
             String strArgs[] = strAct.split(";");
 
-            //tamanho de entrada da rede Ã© definido pelo tamanho da maior msg
+            //tamanho de entrada da rede é definido pelo tamanho da maior msg
             if(strArgs.length > this.maxInput){
                 this.maxInput = strArgs.length;
             }
             
             //System.out.println("args"+strArgs.length +strArgs[0]);
-            //adicionando o nome da aÃ§Ã£o
+            //adicionando o nome da ação
             action.setActionAddress(strArgs[0]);
             
             //lista de argumentos
@@ -147,11 +150,11 @@ public class Instrument implements Serializable{
                 String name = strArgs[i].split("_")[0];
                 String type = strArgs[i].split("_")[1];
 
-                //se for do tipo note(n)    
-                if(type.equals("n")){
+                    
+                if(type.equals("n")){ //se for do tipo note(n)
                     Argument argument = new Argument(name, 'n');
                     argsList.add(argument);
-                }else if(type.equals("i")){
+                }else if(type.equals("i")){ //se for do tipo inteiro(i)
                     Argument argument = new Argument(name, 'i');
                     argsList.add(argument);
                 }
@@ -276,6 +279,7 @@ public class Instrument implements Serializable{
     public OSCMessage createNewAction(Long id){
         Random rand = new Random();
         Integer index = rand.nextInt(this.actions.size());
+        //escolhendo uma ação aleatoriamente
         Action act = this.actions.get(index);
         List<Argument> args = act.getArguments();
         String row = "";
@@ -286,7 +290,7 @@ public class Instrument implements Serializable{
         row += index.toString();
 
         for (Argument arg : args) {
-            
+               
             if(arg.getType() == 'n'){
                 Note note = Notes.generateNote();
 
@@ -297,20 +301,27 @@ public class Instrument implements Serializable{
                 oscMessage.addArgument(note.getSymbol()+note.getOctavePitch());
             }else if(arg.getType() == 'i'){
 
-                oscMessage.addArgument(500);
+                oscMessage.addArgument(200);
                 row += ",";
-                row += "500";
+                row += "200";
 
             }
             //tem que criar os ifs para os outros tipos
         }
-        System.out.println(oscMessage.getAddress() +";"+
-                oscMessage.getArguments().get(0)+";"+oscMessage.getArguments().get(1));
+        PrintOSCMessage.printMsg(oscMessage);
+
         //verifica se Ã© primeira mensagen
         if(this.lastInput != null){
             Delay delay = new Delay(id, this.lastInput, row);          
             this.delays.add(delay);
+            /*
+            System.out.println("add");
+            delays.forEach((d) -> {
+                System.out.println(d);
+            });
+            */
         }else{
+            //System.out.println("lastInput = null");
             this.lastInput = row;
         }
         
@@ -340,7 +351,12 @@ public class Instrument implements Serializable{
         OSCMessage oscMessage = createNewAction(id);
         OSCBundle oscBundle =  new OSCBundle();
         oscBundle.addPacket(oscMessage);
-        oscBundle.setTimestamp(new Date(System.currentTimeMillis()));
+        if(id == 0){
+            oscBundle.setTimestamp(new Date(System.currentTimeMillis()+1000));
+        }else{
+            oscBundle.setTimestamp(new Date(System.currentTimeMillis()+1000));
+        }
+        
         
         this.send(oscBundle);
         this.setWaitingDelay(true);
@@ -355,21 +371,25 @@ public class Instrument implements Serializable{
                d.setDelay(delay);
                this.lastInput = d.getInput2();
             }else{
-                System.out.println("setLastDelay:  id n encontrado");
+                System.out.println("setLastDelay:  id "+ id+" não encontrado");
             }
         }
     }
     
     public void removeDelay(Long id){
         this.lastInput = null;
-        
+        /*
+        for (Delay delay : delays) {
+            System.out.println(delay);
+        }*/
         if(this.delays.size()>0){
             Delay aux = new Delay(id);
             int index = this.delays.indexOf(aux);
             if( index != -1){
                 this.delays.remove(index);
+                System.out.println("removeDelay:  Removeu id"+ id);
             }else{
-                System.out.println("removeDelay:  id n encontrado");
+                System.out.println("removeDelay:  id"+ id +"não encontrado");
             }
         }
         
@@ -391,13 +411,37 @@ public class Instrument implements Serializable{
 
         return types;
     }
-
+    
+    
+    public void setLastInput(OSCMessage oscMessage){
+        String[] adresses = divideAddress(oscMessage.getAddress());
+        Action act = new Action("/"+adresses[1]);
+        Integer index = this.actions.indexOf(act);
+        if(index == -1){
+            System.out.println("Indice da ação /" + adresses[1] +"não encontrado");
+        }
+        this.lastInput = "";
+        this.lastInput += index.toString();
+        
+        List args = oscMessage.getArguments();
+        
+        for(int i = 1; i < args.size(); i++){
+            this.lastInput += "," + args.get(i).toString();
+        }
+        
+        //System.out.println(this.lastInput);
+    }
+    
     public Integer getDelay(OSCMessage oscMessage){
         //caso em que não se deseja usar delay
         if(!this.calculateDelay){
+            System.out.println("return 0");
             return 0;
         }
-        
+        if(this.lastInput == null){
+            System.out.println("lastInput null");
+            return 0;
+        }
         List args = oscMessage.getArguments();
         List argumentsType = this.getArgumentsType(oscMessage);
         double[][] input = new double[1][this.maxInput*2];
@@ -407,10 +451,20 @@ public class Instrument implements Serializable{
         //adicionando input da ultima mensagem
         String[] inp2 = this.lastInput.split(",");
         for (String s: inp2) {
-            input[0][index] = Double.parseDouble(s);
+            input[0][index] = (Double.parseDouble(s)/this.maxValue);
             index++;
         }
-
+        
+        String[] adresses = divideAddress(oscMessage.getAddress());
+        Action act = new Action("/"+adresses[1]);
+        Integer indexAct = this.actions.indexOf(act);
+        if(index == -1){
+            System.out.println("Indice da ação /" + adresses[1] +"não encontrado");
+            return 0;
+        }
+        input[0][index] = (indexAct.doubleValue()/this.maxValue);
+        index++;
+        
         //adicionando inputs da nova msg
         for (int i = 1; i < args.size(); i++) {
             //System.out.println(args.get(i).toString() +" " + argumentsType.get(i-1).toString());
@@ -420,13 +474,14 @@ public class Instrument implements Serializable{
             }else if(argumentsType.get(i-1).equals('c')){
 
             }else{
-                input[0][index] =((Integer)args.get(i)).doubleValue();
+                input[0][index] =(((Integer)args.get(i)).doubleValue()/this.maxValue);
             }
         }
+        System.out.println(Arrays.toString(input[0]));
         INDArray i = Nd4j.create(input);
         INDArray output = this.model.output(i);
         //System.out.println(output.getDouble(0)*this.maxValue);
-        return (int)(output.getInt(0)*this.maxValue);
+        return (int)(output.getDouble(0)*this.maxValue);
     }
 
     public void loadModel(){
@@ -453,10 +508,7 @@ public class Instrument implements Serializable{
             if(delay.getDelay() == -1){
                 continue;
             }
-            System.out.println("Delay " + delay.getDelay());
-            if(delay.getDelay() != 300){
-                System.out.println("Deu ruim, meu patrão " + delay.getDelay());
-            }
+            
             
             //se necessario completa a entrada da rede
             String fullInput = (delay.getInput1() + "," +delay.getInput2());
@@ -564,6 +616,17 @@ public class Instrument implements Serializable{
         for(int j=0; j<1000; j++ ) {
             model.fit(trainingData);
         }
+        /*
+        double input[] = {0.0,0.05,0.0,0.5};
+        //INDArray inp = Nd4j.create(input);
+        INDArray inp = testData.getFeatures();
+        System.out.println("inp(0) "+inp.getRow(0));
+        INDArray output1 = this.model.output(inp.getRow(0));
+        //System.out.println(output.getDouble(0)*this.maxValue);
+        double d = (output1.getDouble(0));
+                
+        System.out.println("Teste fit. Delay "+d);
+        */
         File file = new File("src\\main\\resources\\models\\"+this.name+".zip");
 
         try {
@@ -579,6 +642,8 @@ public class Instrument implements Serializable{
         System.out.println(output);
         eval.eval(testData.getLabels(), output);
         System.out.println(eval.stats());
+        
+        
 
     }
 

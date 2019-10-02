@@ -95,7 +95,7 @@ public class Server {
             sendInstrument(instrument);
         }
         
-        
+        //send server informations
         OSCMessage msg = new OSCMessage(instrument.getOscAddress()+"/handshake");
         //msg.addArgument(0);
         //msg.addArgument(1254);
@@ -353,7 +353,8 @@ public class Server {
             roboMusMessage.setMessageId(id);
             
             int delay = instrument.getDelay(oscMessage);
-            //System.out.println("delay="+delay);
+            instrument.setLastInput(oscMessage);
+            System.out.println("delay = "+delay);
             roboMusMessage.setCompensatedTimestamp(
                     new Date(
                         oscBundle.getTimestamp().getTime() - delay - this.networkDelay
@@ -501,7 +502,7 @@ public class Server {
             instrument.setLastDelay(id, delay);
             
         }else{
-            System.out.println("receiveDelay: instrumento n encontrado");
+            System.out.println("receiveDelay: instrumento /"+instrumentName+" não encontrado");
         }
 
                
@@ -516,7 +517,7 @@ public class Server {
             this.waitingDelay = true;
             long start = System.currentTimeMillis();        
             while(this.waitingDelay &&
-                    (System.currentTimeMillis() - start < 5000)){};
+                    (System.currentTimeMillis() - start < 3000)){};
             
             if(instrument.isWaitingDelay()){
                 System.out.println("removeLastDelay");

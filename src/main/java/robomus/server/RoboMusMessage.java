@@ -25,9 +25,6 @@ public class RoboMusMessage implements Comparable<RoboMusMessage> {
         this.messageId = messageId;
     }
 
-    
-
-
     public Date getOriginalTimestamp() {
         return originalTimestamp;
     }

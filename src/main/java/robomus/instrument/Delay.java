@@ -85,6 +85,11 @@ public class Delay {
         }
         return true;
     }
+
+    @Override
+    public String toString() {
+        return "Delay{" + "messageId=" + messageId + ", input1=" + input1 + ", input2=" + input2 + ", delay=" + delay + '}';
+    }
     
     
 }
