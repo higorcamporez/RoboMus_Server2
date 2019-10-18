@@ -15,7 +15,9 @@ import java.util.logging.Logger;
 
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -58,6 +60,7 @@ public class TestDelayRaspberry {
 
         //System.out.println("Teste Client iniciado");
     }
+    
     public void msgsWithoutDelay(int nMsgs){
         Instrument instrument1 = server.findInstrument("/BongoBot");
         
@@ -78,7 +81,7 @@ public class TestDelayRaspberry {
                         instrument1.getOscAddress()+"/playBongo"
                 );
                 oscMessage1.addArgument((long)i);
-                oscMessage1.addArgument(200);
+                //oscMessage1.addArgument(200);
 
                 Date date = new Date(t);
                 
@@ -96,7 +99,7 @@ public class TestDelayRaspberry {
                 );
                 
                 oscMessage2.addArgument((long)i);
-                oscMessage2.addArgument(200);
+                //oscMessage2.addArgument(200);
 
                 Date date2 = new Date(t);
                 //System.out.println("t = " + date2.getTime());
@@ -170,7 +173,7 @@ public class TestDelayRaspberry {
                         instrument1.getOscAddress()+"/playBongo"
                 );
                 oscMessage1.addArgument((long)i);
-                oscMessage1.addArgument(200);
+                //oscMessage1.addArgument(200);
 
                 Date date = new Date(t);
                 
@@ -187,7 +190,7 @@ public class TestDelayRaspberry {
                 );
                 
                 oscMessage2.addArgument((long)i);
-                oscMessage2.addArgument(200);
+                //oscMessage2.addArgument(200);
 
                 Date date2 = new Date(t);
                 //System.out.println("t = " + date2.getTime());
@@ -244,6 +247,7 @@ public class TestDelayRaspberry {
         
         return op;
     }
+    
     public static String menuTraining(){
         System.out.println("============= menu ===============");
         System.out.println("(0) Train Model");
@@ -253,9 +257,8 @@ public class TestDelayRaspberry {
         String op = ler.nextLine();
         return op;
     }
+    
     public static void main(String[] args) {
-        
-       
         
         TestDelayRaspberry c = new TestDelayRaspberry();
         while(true){
@@ -279,8 +282,12 @@ public class TestDelayRaspberry {
                     String aux = TestDelayRaspberry.menuTraining();
                     System.out.println("Instrument osc address: ");
                     String name = ler.nextLine();    
-                    Instrument instrument = c.server.findInstrument(name);
-                            
+                    Instrument instrument;
+                    if(name.equals("")){
+                        instrument = c.server.findInstrument("/BongoBot");
+                    }else{
+                        instrument = c.server.findInstrument(name);
+                    }        
                     if(instrument == null){
                         System.out.println("Instrument not found!");
                     }else{
@@ -299,7 +306,7 @@ public class TestDelayRaspberry {
                     
                     switch (aux2) {
                         case "0":
-                            c.msgsWithoutDelay(100);
+                            c.msgsWithoutDelay(10);
                             break;
                         case "1":
                             c.msgsWithDelay(10);

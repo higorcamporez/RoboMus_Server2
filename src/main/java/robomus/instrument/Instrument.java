@@ -8,9 +8,14 @@ package robomus.instrument;
 import com.illposed.osc.OSCBundle;
 import com.illposed.osc.OSCMessage;
 import com.illposed.osc.OSCPortOut;
+import java.io.BufferedReader;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 
 import org.deeplearning4j.eval.Evaluation;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
@@ -74,19 +79,16 @@ public class Instrument implements Serializable{
     protected int maxInput;
     protected double maxValue;
     protected Boolean calculateDelay;
-
+    protected int nDelays = 4; 
     public Instrument(){
         this.actions = new ArrayList<Action>();
         this.delays = new ArrayList<Delay>();
         this.lastInput = null;
-        
     }
 
     public Instrument(String OscAddress) {
-        
+        this();
         this.OscAddress = OscAddress;
-        this.actions = new ArrayList<Action>();
-        this.delays = new ArrayList<Delay>();
         
     }
     
@@ -354,9 +356,8 @@ public class Instrument implements Serializable{
         if(id == 0){
             oscBundle.setTimestamp(new Date(System.currentTimeMillis()+1000));
         }else{
-            oscBundle.setTimestamp(new Date(System.currentTimeMillis()+1000));
+            oscBundle.setTimestamp(new Date(System.currentTimeMillis()+700));
         }
-        
         
         this.send(oscBundle);
         this.setWaitingDelay(true);
@@ -442,9 +443,14 @@ public class Instrument implements Serializable{
             System.out.println("lastInput null");
             return 0;
         }
+        if(delays.size() < 5){
+            System.out.println("There are less than 5 delays");
+            return 0;
+        }
+        
         List args = oscMessage.getArguments();
         List argumentsType = this.getArgumentsType(oscMessage);
-        double[][] input = new double[1][this.maxInput*2];
+        double[][] input = new double[1][this.maxInput*2+nDelays];
 
         int index = 0;
 
@@ -454,6 +460,7 @@ public class Instrument implements Serializable{
             input[0][index] = (Double.parseDouble(s)/this.maxValue);
             index++;
         }
+        
         
         String[] adresses = divideAddress(oscMessage.getAddress());
         Action act = new Action("/"+adresses[1]);
@@ -476,7 +483,15 @@ public class Instrument implements Serializable{
             }else{
                 input[0][index] =(((Integer)args.get(i)).doubleValue()/this.maxValue);
             }
+            index++;
         }
+        
+        //adicionando delays anteriores
+        for (int i = delays.size() - nDelays; i < delays.size(); i ++ ) {
+            input[0][index] = (delays.get(i).getDelay()/this.maxValue);
+            index++;
+        }
+        
         System.out.println(Arrays.toString(input[0]));
         INDArray i = Nd4j.create(input);
         INDArray output = this.model.output(i);
@@ -494,29 +509,67 @@ public class Instrument implements Serializable{
             System.out.println("erro ao caregar o modelo!");
             e.printStackTrace();
         }
+        
+        //load maxValue
+        FileReader arq;
+        try {
+            arq = new FileReader("src\\main\\resources\\models\\"+this.name+".txt");
+            BufferedReader lerArq = new BufferedReader(arq);
+ 
+            String linha = lerArq.readLine(); // lê a primeira linha
+            System.out.println("linha="+linha);
+            this.maxValue = Integer.valueOf(linha);
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+      
 
     }
 
     public void fit(){
         System.out.println("fit(): "+this.delays.size());
-        double[][] inputs = new double[this.delays.size()][this.maxInput*2];
+        // 4 delays anteriores
+        
+        double[][] inputs = new double[this.delays.size()][this.maxInput*2 + nDelays];
         double[] outputs = new double[this.delays.size()];
 
         int index = 0;
         this.maxValue = 0;
-        for (Delay delay : delays) {
-            if(delay.getDelay() == -1){
+        if(delays.size() < 5){
+            System.out.println("Tamanho "+delays.size()+" do vetor delays insuficiente!");
+            return;
+        }
+        //for (Delay delay : delays) {
+        for(int i = nDelays; i < delays.size(); i++){
+            
+            if(delays.get(i).getDelay() == -1){
+                i = i + 4;
+                continue;
+            }
+            boolean flag = false;
+            //verifica se algum delay anterior tem valor -1, ou seja,
+            //o servidor não recebeu a informação do mesmo
+            for(int j = i-1; j >= 0; j--){
+                if(delays.get(j).getDelay() == -1){
+                    i = j + 4;
+                    break;
+                }
+            }
+            if(flag){
                 continue;
             }
             
-            
             //se necessario completa a entrada da rede
-            String fullInput = (delay.getInput1() + "," +delay.getInput2());
+            String fullInput = (delays.get(i).getInput1() + "," +delays.get(i).getInput2());
             System.out.println(fullInput);
             String row[] = fullInput.split(",");
             
             //convert string input para float
-            double[] aux = new double[this.maxInput*2];
+            System.out.println("maxinput "+this.maxInput);
+            double[] aux = new double[this.maxInput*2 + nDelays];
             int indexAux = 0;
             for (String string : row) {
                 aux[indexAux] = Double.parseDouble(string);
@@ -525,13 +578,32 @@ public class Instrument implements Serializable{
                 }
                 indexAux++;
             }
+            
+            //adicionando os delays anteriores
+            for(int j = i-1; j >= (i-nDelays); j--){
+                aux[indexAux] = delays.get(j).getDelay();
+                if(aux[indexAux] > this.maxValue){
+                    this.maxValue = aux[indexAux];
+                }
+                indexAux++;        
+            }
+            
             inputs[index] = aux;
-            outputs[index] = delay.getDelay().doubleValue();
+            //vetor de saída
+            outputs[index] = delays.get(i).getDelay().doubleValue();
             if(outputs[index] > this.maxValue){
                 this.maxValue = outputs[index];
             }
             index++;
         }
+        //print dados
+        for(int i = 0; i < inputs.length; i++){
+            for(int j = 0; j < inputs[i].length; j++){
+               System.out.print(inputs[i][j]+","); 
+            }
+            System.out.println("");
+        }
+        
         //normalizaÃ§Ã£o
         for (int i = 0; i < inputs.length; i++) {
             for (int j = 0; j < inputs[i].length; j++) {
@@ -574,7 +646,7 @@ public class Instrument implements Serializable{
         normalizer.transform(trainingData);     //Apply normalization to the training data
         normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
         */
-        final int numInputs = maxInput*2;
+        final int numInputs = maxInput*2 + nDelays;
         int outputNum = 1;
         long seed = 1;
 
@@ -627,6 +699,18 @@ public class Instrument implements Serializable{
                 
         System.out.println("Teste fit. Delay "+d);
         */
+        //salvando o maxValue
+        FileWriter arq;
+        try {
+            arq = new FileWriter("src\\main\\resources\\models\\"+this.name+".txt");
+            PrintWriter gravarArq = new PrintWriter(arq);
+            gravarArq.printf(Integer.toString((int)this.maxValue));
+            arq.close();
+        } catch (IOException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        
         File file = new File("src\\main\\resources\\models\\"+this.name+".zip");
 
         try {

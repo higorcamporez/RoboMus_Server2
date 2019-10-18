@@ -340,7 +340,7 @@ public class Server {
     public void addMessage(OSCBundle oscBundle, long id){
         
         OSCMessage oscMessage = (OSCMessage)oscBundle.getPackets().get(0);
-       
+        
         String[] dividedAddress = divideAddress(oscMessage.getAddress());
         String instrumentAddress = dividedAddress[0];
         Instrument instrument =  this.findInstrument("/"+instrumentAddress);
@@ -352,7 +352,8 @@ public class Server {
             roboMusMessage.setOriginalTimestamp(oscBundle.getTimestamp());
             roboMusMessage.setMessageId(id);
             
-            int delay = instrument.getDelay(oscMessage);
+            int delay = instrument.getDelay(oscMessage)/1000;
+            oscBundle.setTimestamp(new Date(oscBundle.getTimestamp().getTime() - delay));
             instrument.setLastInput(oscMessage);
             System.out.println("delay = "+delay);
             roboMusMessage.setCompensatedTimestamp(
