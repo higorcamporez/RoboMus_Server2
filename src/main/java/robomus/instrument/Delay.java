@@ -30,6 +30,13 @@ public class Delay {
         this.input2 = input2;
     }
     
+    public Delay(Long messageId, String input1, String input2, Long delay) {
+        this(messageId);
+        this.input1 = input1;
+        this.input2 = input2;
+        this.delay = delay;
+    }
+    
     public Long getMessageId() {
         return messageId;
     }

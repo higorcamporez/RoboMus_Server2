@@ -352,16 +352,19 @@ public class Server {
             roboMusMessage.setOriginalTimestamp(oscBundle.getTimestamp());
             roboMusMessage.setMessageId(id);
             
-            int delay = instrument.getDelay(oscMessage)/1000;
+            //int delay = (int)Math.round((double)instrument.getDelay(oscMessage)/1000.0);
+            int delay = instrument.getDelayFromPython(oscMessage);
             oscBundle.setTimestamp(new Date(oscBundle.getTimestamp().getTime() - delay));
             instrument.setLastInput(oscMessage);
-            System.out.println("delay = "+delay);
+            System.out.println(instrumentAddress+" delay = "+delay);
             roboMusMessage.setCompensatedTimestamp(
                     new Date(
                         oscBundle.getTimestamp().getTime() - delay - this.networkDelay
                     )
             );
-            buffer.addMessage(roboMusMessage);
+            synchronized(this){
+                buffer.addMessage(roboMusMessage);
+            }
         }else{
             System.out.println("nao achou instrumento");
         }

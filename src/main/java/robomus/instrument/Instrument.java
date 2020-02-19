@@ -15,6 +15,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 
 import org.deeplearning4j.eval.Evaluation;
@@ -46,9 +47,19 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.deeplearning4j.api.storage.StatsStorage;
+import org.deeplearning4j.eval.RegressionEvaluation;
+import org.deeplearning4j.nn.modelimport.keras.KerasModelImport;
+import org.deeplearning4j.nn.modelimport.keras.exceptions.InvalidKerasConfigurationException;
+import org.deeplearning4j.nn.modelimport.keras.exceptions.UnsupportedKerasConfigurationException;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.ui.api.UIServer;
+import org.deeplearning4j.ui.stats.StatsListener;
+import org.deeplearning4j.ui.storage.FileStatsStorage;
+import org.deeplearning4j.ui.storage.InMemoryStatsStorage;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.io.ClassPathResource;
 import robomus.util.Note;
 import robomus.util.Notes;
 import robomus.util.PrintOSCMessage;
@@ -77,7 +88,8 @@ public class Instrument implements Serializable{
     protected boolean waitingDelay;
     protected MultiLayerNetwork model;
     protected int maxInput;
-    protected double maxValue;
+    protected double maxValueIn;
+    protected double maxValueOut;
     protected Boolean calculateDelay;
     protected int nDelays = 4; 
     public Instrument(){
@@ -302,10 +314,13 @@ public class Instrument implements Serializable{
                 
                 oscMessage.addArgument(note.getSymbol()+note.getOctavePitch());
             }else if(arg.getType() == 'i'){
-
-                oscMessage.addArgument(200);
+                
+                //provisorio
+                //Gerar valores de 500 a 1024
+                int value = rand.nextInt(524)+500;
+                oscMessage.addArgument(value);
                 row += ",";
-                row += "200";
+                row += value;
 
             }
             //tem que criar os ifs para os outros tipos
@@ -356,7 +371,7 @@ public class Instrument implements Serializable{
         if(id == 0){
             oscBundle.setTimestamp(new Date(System.currentTimeMillis()+1000));
         }else{
-            oscBundle.setTimestamp(new Date(System.currentTimeMillis()+700));
+            oscBundle.setTimestamp(new Date(System.currentTimeMillis()+600));
         }
         
         this.send(oscBundle);
@@ -443,24 +458,20 @@ public class Instrument implements Serializable{
             System.out.println("lastInput null");
             return 0;
         }
-        if(delays.size() < 5){
-            System.out.println("There are less than 5 delays");
-            return 0;
-        }
         
         List args = oscMessage.getArguments();
         List argumentsType = this.getArgumentsType(oscMessage);
-        double[][] input = new double[1][this.maxInput*2+nDelays];
-
+        //double[][] input = new double[1][this.maxInput*2+nDelays];
+        double[][] input = new double[1][this.maxInput*2];
+        
         int index = 0;
 
         //adicionando input da ultima mensagem
         String[] inp2 = this.lastInput.split(",");
         for (String s: inp2) {
-            input[0][index] = (Double.parseDouble(s)/this.maxValue);
+            input[0][index] = (Double.parseDouble(s)/this.maxValueIn);
             index++;
         }
-        
         
         String[] adresses = divideAddress(oscMessage.getAddress());
         Action act = new Action("/"+adresses[1]);
@@ -469,7 +480,7 @@ public class Instrument implements Serializable{
             System.out.println("Indice da ação /" + adresses[1] +"não encontrado");
             return 0;
         }
-        input[0][index] = (indexAct.doubleValue()/this.maxValue);
+        input[0][index] = (indexAct.doubleValue()/this.maxValueIn);
         index++;
         
         //adicionando inputs da nova msg
@@ -481,24 +492,127 @@ public class Instrument implements Serializable{
             }else if(argumentsType.get(i-1).equals('c')){
 
             }else{
-                input[0][index] =(((Integer)args.get(i)).doubleValue()/this.maxValue);
+                input[0][index] =(((Integer)args.get(i)).doubleValue()/this.maxValueIn);
             }
             index++;
         }
-        
+        /*
         //adicionando delays anteriores
         for (int i = delays.size() - nDelays; i < delays.size(); i ++ ) {
             input[0][index] = (delays.get(i).getDelay()/this.maxValue);
             index++;
         }
-        
+        */
         System.out.println(Arrays.toString(input[0]));
         INDArray i = Nd4j.create(input);
+        
+        //INDArray i = Nd4j.zeros(1,4);
         INDArray output = this.model.output(i);
-        //System.out.println(output.getDouble(0)*this.maxValue);
-        return (int)(output.getDouble(0)*this.maxValue);
+        System.out.println(output.getDouble(0)*this.maxValueOut);
+        return (int)Math.round((output.getDouble(0)*this.maxValueOut));
     }
+    
+    public Integer getDelayFromPython(OSCMessage oscMessage){
+        //caso em que não se deseja usar delay
+        if(!this.calculateDelay){
+            System.out.println("return 0");
+            return 0;
+        }
+        if(this.lastInput == null){
+            System.out.println("lastInput null");
+            return 0;
+        }
+        
+        List args = oscMessage.getArguments();
+        List argumentsType = this.getArgumentsType(oscMessage);
+        //double[][] input = new double[1][this.maxInput*2+nDelays];
+        double[][] input = new double[1][this.maxInput*2];
+        
+        int index = 0;
 
+        //adicionando input da ultima mensagem
+        String[] inp2 = this.lastInput.split(",");
+        for (String s: inp2) {
+            input[0][index] = (Double.parseDouble(s));
+            index++;
+        }
+        
+        String[] adresses = divideAddress(oscMessage.getAddress());
+        Action act = new Action("/"+adresses[1]);
+        Integer indexAct = this.actions.indexOf(act);
+        if(index == -1){
+            System.out.println("Indice da ação /" + adresses[1] +"não encontrado");
+            return 0;
+        }
+        input[0][index] = (indexAct.doubleValue());
+        index++;
+        
+        //adicionando inputs da nova msg
+        for (int i = 1; i < args.size(); i++) {
+            //System.out.println(args.get(i).toString() +" " + argumentsType.get(i-1).toString());
+            if(argumentsType.get(i-1).equals('n')){
+                Note note = new Note(args.get(i).toString());
+                input[0][index] = note.getMidiValue();
+            }else if(argumentsType.get(i-1).equals('c')){
+
+            }else{
+                input[0][index] =(((Integer)args.get(i)).doubleValue());
+            }
+            index++;
+        }
+        String params = "";
+        for(int i = 0; i < input[0].length; i++){
+            params += Double.toString(input[0][i])+" ";
+        }
+        System.out.println("Params "+params);
+        Process p;
+        double ret = 0;
+        try {
+            p = Runtime.getRuntime().exec("python neuralNetwork.py "+this.name+" "+params);
+            BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            ret = Double.parseDouble(in.readLine());
+        } catch (IOException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        
+        System.out.println(ret);
+        return (int)Math.round(ret/1000);
+    }
+    
+    public void loadModelFromKeras(){
+        String simpleMlp = null;
+        try {
+            simpleMlp = new ClassPathResource("models\\"+this.name+"_keras_model.h5").getFile().getPath();
+            MultiLayerNetwork model = KerasModelImport.importKerasSequentialModelAndWeights(simpleMlp);
+        } catch (IOException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvalidKerasConfigurationException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (UnsupportedKerasConfigurationException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        //load maxValue
+        FileReader arq;
+        try {
+            arq = new FileReader("src\\main\\resources\\models\\"+this.name+"_max_values.txt");
+            BufferedReader lerArq = new BufferedReader(arq);
+ 
+            String linha = lerArq.readLine();
+            System.out.println("maxValueX linha1="+linha);
+            this.maxValueIn = Double.parseDouble(linha);
+            linha = lerArq.readLine();
+            System.out.println(" maxValueY linha2="+linha);
+            this.maxValueOut = Double.parseDouble(linha);
+            
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+    }
     public void loadModel(){
 
         File file = new File("src\\main\\resources\\models\\"+this.name+".zip");
@@ -516,9 +630,13 @@ public class Instrument implements Serializable{
             arq = new FileReader("src\\main\\resources\\models\\"+this.name+".txt");
             BufferedReader lerArq = new BufferedReader(arq);
  
-            String linha = lerArq.readLine(); // lê a primeira linha
-            System.out.println("linha="+linha);
-            this.maxValue = Integer.valueOf(linha);
+            String linha = lerArq.readLine();
+            System.out.println("maxValueX linha1="+linha);
+            this.maxValueIn = Double.parseDouble(linha);
+            linha = lerArq.readLine();
+            System.out.println(" maxValueY linha2="+linha);
+            this.maxValueOut = Double.parseDouble(linha);
+            
         } catch (FileNotFoundException ex) {
             Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
@@ -528,7 +646,16 @@ public class Instrument implements Serializable{
       
 
     }
-
+    public void fit2(){
+        // create random object 
+        Random ran = new Random(); 
+        for(int i = 0; i < 500; i++){
+            double nxt = ran.nextGaussian()*5000 + 20000; 
+            delays.add(new Delay((long)i+1, "0", "0", (long) nxt));
+        }
+        this.maxInput = 1;
+        fit();
+    }
     public void fit(){
         System.out.println("fit(): "+this.delays.size());
         // 4 delays anteriores
@@ -537,79 +664,82 @@ public class Instrument implements Serializable{
         double[] outputs = new double[this.delays.size()];
 
         int index = 0;
-        this.maxValue = 0;
+        this.maxValueIn = 0;
+        this.maxValueOut = 0;
+        /*
         if(delays.size() < 5){
             System.out.println("Tamanho "+delays.size()+" do vetor delays insuficiente!");
             return;
         }
-        //for (Delay delay : delays) {
-        for(int i = nDelays; i < delays.size(); i++){
-            
-            if(delays.get(i).getDelay() == -1){
-                i = i + 4;
-                continue;
-            }
-            boolean flag = false;
-            //verifica se algum delay anterior tem valor -1, ou seja,
-            //o servidor não recebeu a informação do mesmo
-            for(int j = i-1; j >= 0; j--){
-                if(delays.get(j).getDelay() == -1){
-                    i = j + 4;
-                    break;
-                }
-            }
-            if(flag){
-                continue;
-            }
+        */
+        for (Delay delay : delays) {
             
             //se necessario completa a entrada da rede
-            String fullInput = (delays.get(i).getInput1() + "," +delays.get(i).getInput2());
+            String fullInput = (delay.getInput1() + "," +delay.getInput2());
             System.out.println(fullInput);
             String row[] = fullInput.split(",");
             
             //convert string input para float
             System.out.println("maxinput "+this.maxInput);
-            double[] aux = new double[this.maxInput*2 + nDelays];
+            double[] aux = new double[this.maxInput*2];
             int indexAux = 0;
             for (String string : row) {
                 aux[indexAux] = Double.parseDouble(string);
-                if(aux[indexAux] > this.maxValue){
-                    this.maxValue = aux[indexAux];
+                if(aux[indexAux] > this.maxValueIn){
+                    this.maxValueIn = aux[indexAux];
                 }
                 indexAux++;
             }
             
-            //adicionando os delays anteriores
-            for(int j = i-1; j >= (i-nDelays); j--){
-                aux[indexAux] = delays.get(j).getDelay();
-                if(aux[indexAux] > this.maxValue){
-                    this.maxValue = aux[indexAux];
-                }
-                indexAux++;        
-            }
             
             inputs[index] = aux;
             //vetor de saída
-            outputs[index] = delays.get(i).getDelay().doubleValue();
-            if(outputs[index] > this.maxValue){
-                this.maxValue = outputs[index];
+            outputs[index] = delay.getDelay().doubleValue();
+            if(outputs[index] > this.maxValueOut){
+                this.maxValueOut = outputs[index];
             }
             index++;
         }
-        //print dados
+        
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter("src\\main\\resources\\models\\dados_"+this.name+".csv");
+        } catch (IOException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        //print dados e salva em arquivo
         for(int i = 0; i < inputs.length; i++){
             for(int j = 0; j < inputs[i].length; j++){
-               System.out.print(inputs[i][j]+","); 
+               System.out.print(inputs[i][j]+",");
+                try {
+                    writer.append(String.valueOf(inputs[i][j])+",");
+                } catch (IOException ex) {
+                    Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
             System.out.println("");
+            try {
+                writer.append(String.valueOf(outputs[i]));
+                writer.append("\n");
+            } catch (IOException ex) {
+                Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
         }
+        try {
+            writer.close();
+        } catch (IOException ex) {
+            Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        //
         
         //normalizaÃ§Ã£o
         for (int i = 0; i < inputs.length; i++) {
             for (int j = 0; j < inputs[i].length; j++) {
-                inputs[i][j] = inputs[i][j]/this.maxValue;
+                inputs[i][j] = inputs[i][j]/this.maxValueIn;
             }
-            outputs[i] = outputs[i]/this.maxValue;
+            outputs[i] = outputs[i]/this.maxValueOut;
         }
         //
         //prints
@@ -646,10 +776,11 @@ public class Instrument implements Serializable{
         normalizer.transform(trainingData);     //Apply normalization to the training data
         normalizer.transform(testData);         //Apply normalization to the test data. This is using statistics calculated from the *training* set
         */
-        final int numInputs = maxInput*2 + nDelays;
+        
+        final int numInputs = maxInput*2;
         int outputNum = 1;
         long seed = 1;
-
+            
         //log.info("Build model....");
         MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
                 .seed(seed)
@@ -660,30 +791,33 @@ public class Instrument implements Serializable{
                 //.updater(Updater.NESTEROVS)
                 .l2(1e-4)
                 .list()
-                .layer(new DenseLayer.Builder().nIn(numInputs).nOut(32)
+                .layer(new DenseLayer.Builder().nIn(numInputs).nOut(64)
                         .build())
-                .layer(new DenseLayer.Builder().nIn(32).nOut(1024)
+                .layer(new DenseLayer.Builder().nIn(64).nOut(128)
                         .build())
-                .layer(new DenseLayer.Builder().nIn(1024).nOut(2048)
+                .layer(new DenseLayer.Builder().nIn(128).nOut(256)
                         .build())
                 //.layer(new DenseLayer.Builder().nIn(2048).nOut(2048)
                 //        .build())
-                .layer(new DenseLayer.Builder().nIn(2048).nOut(512)
-                        .build())
-                .layer(new DenseLayer.Builder().nIn(512).nOut(64)
-                        .build())
-                .layer(new DenseLayer.Builder().nIn(64).nOut(16)
+                //.layer(new DenseLayer.Builder().nIn(2048).nOut(512)
+                //        .build())
+                // .layer(new DenseLayer.Builder().nIn(512).nOut(64)
+                //        .build())
+                .layer(new DenseLayer.Builder().nIn(256).nOut(32)
                         .build())
                 .layer( new OutputLayer.Builder(LossFunctions.LossFunction.MEAN_ABSOLUTE_ERROR)
                         .activation(Activation.SIGMOID)
-                        .nIn(16).nOut(outputNum).build())
+                        .nIn(32).nOut(outputNum).build())
                 .build();
-
+        
+        
+        
         //run the model
         this.model = new MultiLayerNetwork(conf);
-        model.init();
-        model.setListeners(new ScoreIterationListener(100));
+        
 
+        model.init();
+        model.setListeners(new ScoreIterationListener(1000));
 
         for(int j=0; j<1000; j++ ) {
             model.fit(trainingData);
@@ -704,7 +838,8 @@ public class Instrument implements Serializable{
         try {
             arq = new FileWriter("src\\main\\resources\\models\\"+this.name+".txt");
             PrintWriter gravarArq = new PrintWriter(arq);
-            gravarArq.printf(Integer.toString((int)this.maxValue));
+            gravarArq.printf(Double.toString(this.maxValueIn)+
+                                "\n" + Double.toString(this.maxValueOut));
             arq.close();
         } catch (IOException ex) {
             Logger.getLogger(Instrument.class.getName()).log(Level.SEVERE, null, ex);
@@ -721,14 +856,13 @@ public class Instrument implements Serializable{
 
         //System.out.println(testData.getLabels());
         //evaluate the model on the test set
-        Evaluation eval = new Evaluation(1);
+        //Evaluation eval = new Evaluation(1);
+        RegressionEvaluation eval =  new RegressionEvaluation(1);
         INDArray output = model.output(testData.getFeatures());
         System.out.println(output);
         eval.eval(testData.getLabels(), output);
         System.out.println(eval.stats());
         
-        
-
     }
 
     public String[] divideAddress(String address){
@@ -749,6 +883,6 @@ public class Instrument implements Serializable{
     public void setCalculateDelay(Boolean calculateDelay) {
         this.calculateDelay = calculateDelay;
     }
-    
+
     
 }
