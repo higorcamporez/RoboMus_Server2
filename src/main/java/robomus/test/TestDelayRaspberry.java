@@ -93,9 +93,9 @@ public class TestDelayRaspberry {
                 OSCMessage oscMessage1 = new OSCMessage(
                         instrument1.getOscAddress()+"/playBongo"
                 );
-                oscMessage1.addArgument((long)i);
-                oscMessage1.addArgument( rand.nextInt(524)+500);
-                //oscMessage1.addArgument( 950);
+                oscMessage1.addArgument((long)i); //id
+                oscMessage1.addArgument(rand.nextInt(2)); //solenoide 0 -> 1
+                oscMessage1.addArgument(rand.nextFloat()); //velocity
                 Date date = new Date(t);
                 
                 OSCBundle oscBundle1 =  new OSCBundle();
@@ -111,9 +111,10 @@ public class TestDelayRaspberry {
                         instrument2.getOscAddress()+"/playBongo"
                 );
                 
-                oscMessage2.addArgument((long)i);
-                oscMessage2.addArgument(rand.nextInt(524)+500);
-
+                oscMessage2.addArgument((long)i); //id
+                oscMessage2.addArgument(rand.nextInt(2)); //solenoide 0->1
+                oscMessage2.addArgument(rand.nextFloat()); // velocity
+                
                 Date date2 = new Date(t);
                 //System.out.println("t = " + date2.getTime());
                 OSCBundle oscBundle2 =  new OSCBundle();
@@ -284,8 +285,9 @@ public class TestDelayRaspberry {
                 OSCMessage oscMessage1 = new OSCMessage(
                         instrument1.getOscAddress()+"/playBongo"
                 );
-                oscMessage1.addArgument((long)i);
-                oscMessage1.addArgument(rand.nextInt(524)+500);
+                oscMessage1.addArgument((long)i); //id
+                oscMessage1.addArgument(rand.nextInt(1)); //solenoide
+                oscMessage1.addArgument(rand.nextFloat()); //velocity
 
                 Date date = new Date(t);
                 
@@ -611,7 +613,7 @@ public class TestDelayRaspberry {
                     }else{
                         switch (aux) {
                             case "0":
-                                c.server.trainInstrumentDelay(instrument, 1000);
+                                c.server.trainInstrumentDelay(instrument, 50);
                                 break;
                             case "1":
                                 instrument.loadModelFromKeras();

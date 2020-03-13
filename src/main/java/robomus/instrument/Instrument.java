@@ -171,6 +171,12 @@ public class Instrument implements Serializable{
                 }else if(type.equals("i")){ //se for do tipo inteiro(i)
                     Argument argument = new Argument(name, 'i');
                     argsList.add(argument);
+                }else if(type.equals("f")){ //se for do tipo float(s)
+                    Argument argument = new Argument(name, 'f');
+                    argsList.add(argument);
+                }else if(type.equals("s")){ //se for do tipo string(s)
+                    Argument argument = new Argument(name, 's');
+                    argsList.add(argument);
                 }
              
             }
@@ -316,14 +322,25 @@ public class Instrument implements Serializable{
             }else if(arg.getType() == 'i'){
                 
                 //provisorio
-                //Gerar valores de 500 a 1024
-                int value = rand.nextInt(524)+500;
+                //Gerar 0 ou 1. 0-> sole central 1->lateral
+                int value = rand.nextInt(2);
                 oscMessage.addArgument(value);
                 row += ",";
                 row += value;
 
+            }else if(arg.getType() == 'f'){
+                
+                //provisorio
+                float value = rand.nextFloat();
+                oscMessage.addArgument(value);
+                row += ",";
+                row += value;
+
+            }else if(arg.getType() == 's'){
+                
+
             }
-            //tem que criar os ifs para os outros tipos
+
         }
         PrintOSCMessage.printMsg(oscMessage);
 
